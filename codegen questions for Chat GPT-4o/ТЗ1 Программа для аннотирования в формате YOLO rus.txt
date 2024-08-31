@@ -1,0 +1,359 @@
+Модифицируй программу на C# WinForms, основные файлы которой идут ниже таким образом, чтобы она смогла не только составлять изображения с нарисованными символами в файлы, 
+но и сохранять получившиеся данные с аннотациями для всех изображений в формате YOLO используя параметры указанные пользователем.
+
+Добавить главное меню и создать меню "Настройки".
+При нажатии на меню "Настройки" показывать форму с настройками, которые содержат:
+Пользователь выбирает следующие параметры и каждый параметр расположен на отдельной вкладке объекта TabControl:
+1. Набор символов, для изображений которых которые необходимо добавить аннотации применяя различные вариации. По умолчанию использовать набор цифр: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
+2. Размер изображений для создания набора анотаций в формате YOLO. По умолчанию использовать размер: ширина = 1280, высота = 1280
+3. Список размеров шрифта
+4. Список цвета фона. В списке отображать квадрат 16x16 точек выбранного цвета и подпись в виде числе RGB. Элемент списка должен выглядеть как: [квадрат выбранного цвета] R:xxx G:yyy B:zzz
+5. Список цвета шрифта. В списке отображать квадрат 16x16 точек выбранного цвета и подпись в виде числе RGB. Элемент списка должен выглядеть как: [квадрат выбранного цвета] R:xxx G:yyy B:zzz
+
+Описание функции GenerateImages:
+При нажатии на кнопку "Генерация" в выбранной папке создаётся структура аннотаций в формате YOLO.
+В примере указана генерация целой строки без разбиения на символы. 
+Необходимо модифицировать функцию так, чтобы каждый символ из введённой строки печатать отдельно соблюдая необходимый отступ.
+Набор введённых символов печатается в строку. 
+Если все символы в одну строку не помещаются в пределы изображения - печатать с новой строки.
+Для каждого символа вычисляется:
+1. его координаты
+2. размер по ширине и высоте
+Символ выделяется прямоугольником по периметру с отступом в 2 пикселя от каждого его края и параметры получившегося прямогольника сохраняются в текстовый файл в папку с аннотацией в соответствии с правилами создания текстового файла аннотации формата YOLO.
+
+Продумай изменения в функции GenerateImages.
+Перед началом работы опиши как ты будешь выполнять генерацию изображений и формирование аннотаций в формате YOLO по шагам. Удели этой проблеме максимум внимания.
+
+Ultralytics YOLO format
+The Ultralytics YOLO format is a dataset configuration format that allows you to define the dataset root directory, the relative paths to training/validation/testing image directories or *.txt files containing image paths, and a dictionary of class names. 
+Here is an example:
+
+Structure your custom YOLO dataset for the training. For the object detection task, the working solution is:
+dataset/
+|-- train/
+| |-- images/
+| |-- labels/
+|-- val/
+| |-- images/
+| |-- labels/
+|-- test/
+| |-- images/
+| |-- labels/
+|-- classes.txt
+|-- coco8.yaml
+|-- notes.json
+
+# Sample of "classes.txt" (10 classes)
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+# Sample of "coco8.yaml" (10 classes)
+names:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 0
+path: <absolute path>
+nc: 10 # Number of classes
+test: images
+train: images
+val: images
+
+# Sample of "notes.json" (10 classes)
+{
+  "categories": [
+    {
+      "id": 0,
+      "name": "0"
+    },
+    {
+      "id": 1,
+      "name": "1"
+    },
+    {
+      "id": 2,
+      "name": "2"
+    },
+    {
+      "id": 3,
+      "name": "3"
+    },
+    {
+      "id": 4,
+      "name": "4"
+    },
+    {
+      "id": 5,
+      "name": "5"
+    },
+    {
+      "id": 6,
+      "name": "6"
+    },
+    {
+      "id": 7,
+      "name": "7"
+    },
+    {
+      "id": 8,
+      "name": "8"
+    },
+    {
+      "id": 9,
+      "name": "9"
+    }
+  ],
+  "info": {
+    "year": 2024,
+    "version": "1.0",
+    "contributor": "Your Name"
+  }
+}
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: ../datasets/coco8  # dataset root dir
+train: images/train  # train images (relative to 'path') some images + labels
+val: images/val  # val images (relative to 'path') some images + labels
+test:  # test images (optional)  some images + labels
+
+Labels for this format should be exported to YOLO format with one *.txt file per image. 
+If there are no objects in an image, no *.txt file is required. 
+The *.txt file should be formatted with one row per object in class x_center y_center width height format. 
+Box coordinates must be in normalized xywh format (from 0 to 1). 
+If your boxes are in pixels, you should divide x_center and width by image width, and y_center and height by image height. 
+Class numbers should be zero-indexed (start with 0).
+
+Далее пример текстового файда "<image file name>.txt", из любой папки labels, с выделением четырёх объектов класса 6 и четырёх объектов класса 8:
+
+6 0.24678466815872227 0.48833504450187376 0.03210406306174097 0.15255390734930394
+6 0.27638520336702477 0.4811680824116381 0.031220464995821543 0.16484012807542223
+6 0.4177608939141409 0.5016451169551688 0.020617288204787768 0.14436309353189153
+6 0.3989108018411921 0.500109339364404 0.022973549713906465 0.14129153835036193
+8 0.37778812548324653 0.4984808470846036 0.024901400039548847 0.13961614461498215
+8 0.35543041684558707 0.50034239567947 0.024633643049876353 0.143339241804715
+8 0.33334046519760013 0.5012731699769033 0.026507941977584295 0.1526469847790471
+8 0.3037031130384309 0.49023365808089486 0.027578969936274546 0.16009317915851284
+
+Формат строки формата YOLO в общем виде выглядит как:
+<номер класса> <x-center> <y-center> <width> <height>
+где:
+<object-class> is an integer representing the class of the object. The class index should start from 0 and increase by 1 for each unique class in the dataset.
+<x-center> and <y-center> are the coordinates of the center of the bounding box, normalized by the width and height of the image, respectively. The values should be in the range of [0, 1].
+<width> and <height> are the width and height of the bounding box, normalized by the width and height of the image, respectively. The values should be in the range of [0, 1].
+
+
+--------------------- Program.cs
+using System;
+using System.Windows.Forms;
+
+namespace FontImageGenerator
+{
+    static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+    }
+}
+--------------------- Program.cs
+
+
+--------------------- MainForm.cs
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace FontImageGenerator
+{
+    public partial class MainForm : Form
+    {
+        public MainForm()
+        {
+            InitializeComponent();
+            LoadFonts();
+        }
+
+        private void LoadFonts()
+        {
+            foreach (FontFamily font in FontFamily.Families)
+            {
+                checkedListBoxFonts.Items.Add(font.Name);
+            }
+        }
+
+        private void checkedListBoxFonts_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string selectedFont = checkedListBoxFonts.SelectedItem.ToString();
+            UpdatePreview(selectedFont);
+        }
+
+        private void UpdatePreview(string fontName)
+        {
+            if (string.IsNullOrEmpty(fontName))
+                return;
+
+            Bitmap bitmap = new Bitmap(pictureBoxPreview.Width, pictureBoxPreview.Height);
+            using (Graphics g = Graphics.FromImage(bitmap))
+            {
+                g.Clear(Color.White);
+                using (Font font = new Font(fontName, 24))
+                {
+                    g.DrawString("0123456789", font, Brushes.Black, new PointF(10, 10));
+                }
+            }
+            pictureBoxPreview.Image = bitmap;
+        }
+
+        private void btnGenerateImages_Click(object sender, EventArgs e)
+        {
+            if (checkedListBoxFonts.CheckedItems.Count == 0)
+            {
+                MessageBox.Show("Please select at least one font from the list.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using (FolderBrowserDialog dialog = new FolderBrowserDialog())
+            {
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    string folderPath = dialog.SelectedPath;
+                    foreach (var selectedFont in checkedListBoxFonts.CheckedItems)
+                    {
+                        GenerateImages(selectedFont.ToString(), folderPath);
+                    }
+                    MessageBox.Show("Images generated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        private void GenerateImages(string fontName, string folderPath)
+        {
+            int[] fontSizes = { 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 108 };
+            Color[] fontColors = { Color.FromArgb(40, 40, 40), Color.FromArgb(120, 120, 120), Color.FromArgb(180, 180, 180), Color.FromArgb(230, 230, 230) };
+            Color[] bgColors = { Color.FromArgb(40, 40, 40), Color.FromArgb(120, 120, 120), Color.FromArgb(180, 180, 180), Color.FromArgb(230, 230, 230) };
+
+            foreach (var fontColor in fontColors)
+            {
+                foreach (var bgColor in bgColors)
+                {
+                    if (fontColor != bgColor)
+                    {
+                        Bitmap bitmap = new Bitmap(768, 768);
+                        using (Graphics g = Graphics.FromImage(bitmap))
+                        {
+                            g.Clear(bgColor);
+                            float yPosition = 10;
+                            foreach (var fontSize in fontSizes)
+                            {
+                                using (Font font = new Font(fontName, fontSize))
+                                {
+                                    if (font.Size == fontSize)
+                                    {
+                                        g.DrawString("0123456789", font, new SolidBrush(fontColor), new PointF(10, yPosition));
+                                        yPosition += fontSize + 5; // Расстояние между строками
+                                    }
+                                }
+                            }
+                        }
+                        string filePath = System.IO.Path.Combine(folderPath, $"{fontName}_{fontColor.R}_{fontColor.G}_{fontColor.B}_{bgColor.R}_{bgColor.G}_{bgColor.B}.png");
+                        bitmap.Save(filePath, ImageFormat.Png);
+                    }
+                }
+            }
+        }
+    }
+}
+
+--------------------- MainForm.cs
+
+--------------------- MainForm.Designer.cs
+namespace FontImageGenerator
+{
+    partial class MainForm
+    {
+        private System.ComponentModel.IContainer components = null;
+        private System.Windows.Forms.CheckedListBox checkedListBoxFonts;
+        private System.Windows.Forms.PictureBox pictureBoxPreview;
+        private System.Windows.Forms.Button btnGenerateImages;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void InitializeComponent()
+        {
+            this.checkedListBoxFonts = new System.Windows.Forms.CheckedListBox();
+            this.pictureBoxPreview = new System.Windows.Forms.PictureBox();
+            this.btnGenerateImages = new System.Windows.Forms.Button();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPreview)).BeginInit();
+            this.SuspendLayout();
+            // 
+            // checkedListBoxFonts
+            // 
+            this.checkedListBoxFonts.FormattingEnabled = true;
+            this.checkedListBoxFonts.Location = new System.Drawing.Point(12, 12);
+            this.checkedListBoxFonts.Name = "checkedListBoxFonts";
+            this.checkedListBoxFonts.Size = new System.Drawing.Size(200, 420);
+            this.checkedListBoxFonts.TabIndex = 0;
+            this.checkedListBoxFonts.SelectedIndexChanged += new System.EventHandler(this.checkedListBoxFonts_SelectedIndexChanged);
+            // 
+            // pictureBoxPreview
+            // 
+            this.pictureBoxPreview.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pictureBoxPreview.Location = new System.Drawing.Point(218, 12);
+            this.pictureBoxPreview.Name = "pictureBoxPreview";
+            this.pictureBoxPreview.Size = new System.Drawing.Size(640, 420);
+            this.pictureBoxPreview.TabIndex = 1;
+            this.pictureBoxPreview.TabStop = false;
+            // 
+            // btnGenerateImages
+            // 
+            this.btnGenerateImages.Location = new System.Drawing.Point(218, 438);
+            this.btnGenerateImages.Name = "btnGenerateImages";
+            this.btnGenerateImages.Size = new System.Drawing.Size(640, 23);
+            this.btnGenerateImages.TabIndex = 2;
+            this.btnGenerateImages.Text = "Сформировать...";
+            this.btnGenerateImages.UseVisualStyleBackColor = true;
+            this.btnGenerateImages.Click += new System.EventHandler(this.btnGenerateImages_Click);
+            // 
+            // MainForm
+            // 
+            this.ClientSize = new System.Drawing.Size(870, 473);
+            this.Controls.Add(this.btnGenerateImages);
+            this.Controls.Add(this.pictureBoxPreview);
+            this.Controls.Add(this.checkedListBoxFonts);
+            this.Name = "MainForm";
+            this.Text = "Font Image Generator";
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPreview)).EndInit();
+            this.ResumeLayout(false);
+
+        }
+    }
+}
+
+--------------------- MainForm.Designer.cs

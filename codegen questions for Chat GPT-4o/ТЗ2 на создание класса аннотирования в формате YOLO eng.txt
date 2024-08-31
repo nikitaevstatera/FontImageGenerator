@@ -1,0 +1,137 @@
+Write a class in C# for creating annotations in the YOLO format. This class should inherit from a list. There should be a method for adding an annotation of a new image `AddNewAnnotatedImage(...)`: 
+1. Image of Bitmap class
+2. List of structures containing the annotated object class + its center + coordinates of the upper left corner + coordinates of the lower right corner
+Inside, there should be necessary transformations for normalizing the center and sizes according to the YOLO format. 
+At the beginning of generating the code, carefully plan the structure of classes and transformations step by step.
+It is necessary to implement the SaveToPath() method, which will save the prepared data to the specified folder in YOLO format.
+
+Ultralytics YOLO format
+The Ultralytics YOLO format is a dataset configuration format that allows you to define the dataset root directory, the relative paths to training/validation/testing image directories or *.txt files containing image paths, and a dictionary of class names. 
+Here is an example:
+
+Structure your custom YOLO dataset for the training. For the object detection task, the working solution is:
+dataset/
+|-- train/
+| |-- images/
+| |-- labels/
+|-- val/
+| |-- images/
+| |-- labels/
+|-- test/
+| |-- images/
+| |-- labels/
+|-- classes.txt
+|-- coco8.yaml
+|-- notes.json
+
+# Sample of "classes.txt" (10 classes)
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+# Sample of "coco8.yaml" (10 classes)
+names:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 0
+path: <absolute path>
+nc: 10 # Number of classes
+test: images
+train: images
+val: images
+
+# Sample of "notes.json" (10 classes)
+{
+  "categories": [
+    {
+      "id": 0,
+      "name": "0"
+    },
+    {
+      "id": 1,
+      "name": "1"
+    },
+    {
+      "id": 2,
+      "name": "2"
+    },
+    {
+      "id": 3,
+      "name": "3"
+    },
+    {
+      "id": 4,
+      "name": "4"
+    },
+    {
+      "id": 5,
+      "name": "5"
+    },
+    {
+      "id": 6,
+      "name": "6"
+    },
+    {
+      "id": 7,
+      "name": "7"
+    },
+    {
+      "id": 8,
+      "name": "8"
+    },
+    {
+      "id": 9,
+      "name": "9"
+    }
+  ],
+  "info": {
+    "year": 2024,
+    "version": "1.0",
+    "contributor": "Your Name"
+  }
+}
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: ../datasets/coco8  # dataset root dir
+train: images/train  # train images (relative to 'path') some images + labels
+val: images/val  # val images (relative to 'path') some images + labels
+test:  # test images (optional)  some images + labels
+
+Labels for this format should be exported to YOLO format with one *.txt file per image. 
+If there are no objects in an image, no *.txt file is required. 
+The *.txt file should be formatted with one row per object in class x_center y_center width height format. 
+Box coordinates must be in normalized xywh format (from 0 to 1). 
+If your boxes are in pixels, you should divide x_center and width by image width, and y_center and height by image height. 
+Class numbers should be zero-indexed (start with 0).
+
+Next, an example of a text file '<image file name>.txt' from any 'labels' folder, highlighting four objects of class 6 and four objects of class 8:
+
+6 0.24678466815872227 0.48833504450187376 0.03210406306174097 0.15255390734930394
+6 0.27638520336702477 0.4811680824116381 0.031220464995821543 0.16484012807542223
+6 0.4177608939141409 0.5016451169551688 0.020617288204787768 0.14436309353189153
+6 0.3989108018411921 0.500109339364404 0.022973549713906465 0.14129153835036193
+8 0.37778812548324653 0.4984808470846036 0.024901400039548847 0.13961614461498215
+8 0.35543041684558707 0.50034239567947 0.024633643049876353 0.143339241804715
+8 0.33334046519760013 0.5012731699769033 0.026507941977584295 0.1526469847790471
+8 0.3037031130384309 0.49023365808089486 0.027578969936274546 0.16009317915851284
+
+The general format of a YOLO format line looks like:
+<class number> <x center> <y center> <width> <height>
+where:
+<object-class> is an integer representing the class of the object. The class index should start from 0 and increase by 1 for each unique class in the dataset.
+<x-center> and <y-center> are the coordinates of the center of the bounding box, normalized by the width and height of the image, respectively. The values should be in the range of [0, 1].
+<width> and <height> are the width and height of the bounding box, normalized by the width and height of the image, respectively. The values should be in the range of [0, 1].

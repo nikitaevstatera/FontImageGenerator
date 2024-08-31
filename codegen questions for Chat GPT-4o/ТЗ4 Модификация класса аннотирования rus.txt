@@ -1,0 +1,108 @@
+Дополни функцию YoloAnnotation.SaveToPath так, чтобы формировались файлы "classes.txt", "coco8.yaml" и "notes.json" для аннотаций в формате YOLO.
+Необходимо использовать описание формата YOLO и текущую реализацию класса YoloAnnotation.
+
+Описание формата YOLO:
+
+Ultralytics YOLO format:
+The Ultralytics YOLO format is a dataset configuration format that allows you to define the dataset root directory, the relative paths to training/validation/testing image directories or *.txt files containing image paths, and a dictionary of class names. 
+Here is an example:
+
+Structure your custom YOLO dataset for the training. For the object detection task, the working solution is:
+dataset/
+|-- train/
+| |-- images/
+| |-- labels/
+|-- val/
+| |-- images/
+| |-- labels/
+|-- test/
+| |-- images/
+| |-- labels/
+|-- classes.txt
+|-- coco8.yaml
+|-- notes.json
+
+# Sample of "classes.txt" (10 classes)
+0
+1
+
+# Sample of "coco8.yaml" (10 classes)
+names:
+  - 1
+  - 2
+path: <absolute path>
+nc: 10 # Number of classes
+test: images
+train: images
+val: images
+
+# Sample of "notes.json" (10 classes)
+{
+  "categories": [
+    {
+      "id": 0,
+      "name": "0"
+    },
+    {
+      "id": 1,
+      "name": "1"
+    }
+	etc.
+  ],
+  "info": {
+    "year": 2024,
+    "version": "1.0",
+    "contributor": "Your Name"
+  }
+}
+
+Текущая реализация класса YoloAnnotation:
+
+public class YoloAnnotation : List<AnnotatedImage>
+{
+    public void AddNewAnnotatedImage(Bitmap image, List<AnnotatedObject> objects)
+    {
+        // Normalize coordinates and sizes
+        foreach (var obj in objects)
+        {
+            obj.XCenter = obj.XCenter / image.Width;
+            obj.YCenter = obj.YCenter / image.Height;
+            obj.Width = obj.Width / image.Width;
+            obj.Height = obj.Height / image.Height;
+        }
+
+        // Add new annotated image
+        Add(new AnnotatedImage(image, objects));
+    }
+
+    public void SaveToPath(string path)
+    {
+        CheckPathAndCreate(path);
+        CheckPathAndCreate(Path.Combine(path, "images"));
+        CheckPathAndCreate(Path.Combine(path, "labels"));
+
+        // Save images
+        for (int i = 0; i < Count; i++)
+        {
+            var img = this[i];
+            img.Image.Save(Path.Combine(path, "images", $"image{i}.jpg"));
+
+            // Save labels
+            using (var writer = new StreamWriter(Path.Combine(path, "labels", $"image{i}.txt")))
+            {
+                foreach (var obj in img.Objects)
+                {
+                    writer.WriteLine($"{obj.Class} {obj.XCenter} {obj.YCenter} {obj.Width} {obj.Height}");
+                }
+            }
+        }
+    }
+
+    private static void CheckPathAndCreate(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+    }
+}

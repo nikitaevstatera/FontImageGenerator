@@ -1,0 +1,366 @@
+Modify the C# WinForms program so that it can not only generate images with drawn characters but also save the resulting data with annotations for all images in the YOLO format using parameters specified by the user and the YoloAnnotation class.**
+
+**Add a main menu and create a "Settings" menu.**
+When clicking on the "Settings" menu, display a form with settings that include:
+- The user selects the following parameters, and each parameter is located on a separate tab of the TabControl object:
+  1. **Set of characters** for which annotations should be added to the images using various variations. By default, use the set of digits: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9.
+  2. **Image size** for creating a set of annotations in the YOLO format. By default, use the size: width = 1280, height = 1280.
+  3. **List of font sizes**.
+  4. **Background color list**. Display a square of 16x16 pixels of the selected color and a label in the form of RGB numbers. The list item should look like: [square of selected color] R:xxx G:yyy B:zzz.
+  5. **Font color list**. Display a square of 16x16 pixels of the selected color and a label in the form of RGB numbers. The list item should look like: [square of selected color] R:xxx G:yyy B:zzz.
+
+**Description of the GenerateImages function:**
+Upon clicking the "Generate" button, the annotation structure in the YOLO format is created in the selected folder using the YoloAnnotation class. The example shows the generation of an entire line without splitting into characters. It is necessary to modify the function so that each character from the entered string in the settings is printed separately, observing the necessary indentation. The set of entered characters is printed in a line. Characters should be drawn with an offset from the beginning of the image of 2 pixels, and between characters, there should be a minimum offset of 2 pixels. Drawing characters with the same coordinates is prohibited. If all characters that need to be printed in one line do not fit within the image limits, the remaining characters should be printed from a new line. For each character, calculate:
+1. Its coordinates with displacement from the previous character and from the left edge of the image.
+2. Size in width and height in pixels using WinAPI functions.
+The character is highlighted by a rectangle along its perimeter with an offset of 2 pixels, and the parameters of the resulting rectangle are used to add to the object of the YoloAnnotation class.
+
+Think through changes in the GenerateImages function. Write the program completely with division into modules. Pay special attention to modifying the GenerateImages function.
+
+
+--------------------- Program.cs
+using System;
+using System.Windows.Forms;
+
+namespace FontImageGenerator
+{
+    static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+    }
+}
+--------------------- Program.cs
+
+
+--------------------- MainForm.cs
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace FontImageGenerator
+{
+    public partial class MainForm : Form
+    {
+        public MainForm()
+        {
+            InitializeComponent();
+            LoadFonts();
+        }
+
+        private void LoadFonts()
+        {
+            foreach (FontFamily font in FontFamily.Families)
+            {
+                checkedListBoxFonts.Items.Add(font.Name);
+            }
+        }
+
+        private void checkedListBoxFonts_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string selectedFont = checkedListBoxFonts.SelectedItem.ToString();
+            UpdatePreview(selectedFont);
+        }
+
+        private void UpdatePreview(string fontName)
+        {
+            if (string.IsNullOrEmpty(fontName))
+                return;
+
+            Bitmap bitmap = new Bitmap(pictureBoxPreview.Width, pictureBoxPreview.Height);
+            using (Graphics g = Graphics.FromImage(bitmap))
+            {
+                g.Clear(Color.White);
+                using (Font font = new Font(fontName, 24))
+                {
+                    g.DrawString("0123456789", font, Brushes.Black, new PointF(10, 10));
+                }
+            }
+            pictureBoxPreview.Image = bitmap;
+        }
+
+        private void btnGenerateImages_Click(object sender, EventArgs e)
+        {
+            if (checkedListBoxFonts.CheckedItems.Count == 0)
+            {
+                MessageBox.Show("Please select at least one font from the list.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using (FolderBrowserDialog dialog = new FolderBrowserDialog())
+            {
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    string folderPath = dialog.SelectedPath;
+                    foreach (var selectedFont in checkedListBoxFonts.CheckedItems)
+                    {
+                        GenerateImages(selectedFont.ToString(), folderPath);
+                    }
+                    MessageBox.Show("Images generated successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        private void GenerateImages(string fontName, string folderPath)
+        {
+            int[] fontSizes = { 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 108 };
+            Color[] fontColors = { Color.FromArgb(40, 40, 40), Color.FromArgb(120, 120, 120), Color.FromArgb(180, 180, 180), Color.FromArgb(230, 230, 230) };
+            Color[] bgColors = { Color.FromArgb(40, 40, 40), Color.FromArgb(120, 120, 120), Color.FromArgb(180, 180, 180), Color.FromArgb(230, 230, 230) };
+
+            foreach (var fontColor in fontColors)
+            {
+                foreach (var bgColor in bgColors)
+                {
+                    if (fontColor != bgColor)
+                    {
+                        Bitmap bitmap = new Bitmap(768, 768);
+                        using (Graphics g = Graphics.FromImage(bitmap))
+                        {
+                            g.Clear(bgColor);
+                            float yPosition = 10;
+                            foreach (var fontSize in fontSizes)
+                            {
+                                using (Font font = new Font(fontName, fontSize))
+                                {
+                                    if (font.Size == fontSize)
+                                    {
+                                        g.DrawString("0123456789", font, new SolidBrush(fontColor), new PointF(10, yPosition));
+                                        yPosition += fontSize + 5; // Расстояние между строками
+                                    }
+                                }
+                            }
+                        }
+                        string filePath = System.IO.Path.Combine(folderPath, $"{fontName}_{fontColor.R}_{fontColor.G}_{fontColor.B}_{bgColor.R}_{bgColor.G}_{bgColor.B}.png");
+                        bitmap.Save(filePath, ImageFormat.Png);
+                    }
+                }
+            }
+        }
+    }
+}
+
+--------------------- MainForm.cs
+
+--------------------- MainForm.Designer.cs
+namespace FontImageGenerator
+{
+    partial class MainForm
+    {
+        private System.ComponentModel.IContainer components = null;
+        private System.Windows.Forms.CheckedListBox checkedListBoxFonts;
+        private System.Windows.Forms.PictureBox pictureBoxPreview;
+        private System.Windows.Forms.Button btnGenerateImages;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void InitializeComponent()
+        {
+            this.checkedListBoxFonts = new System.Windows.Forms.CheckedListBox();
+            this.pictureBoxPreview = new System.Windows.Forms.PictureBox();
+            this.btnGenerateImages = new System.Windows.Forms.Button();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPreview)).BeginInit();
+            this.SuspendLayout();
+            // 
+            // checkedListBoxFonts
+            // 
+            this.checkedListBoxFonts.FormattingEnabled = true;
+            this.checkedListBoxFonts.Location = new System.Drawing.Point(12, 12);
+            this.checkedListBoxFonts.Name = "checkedListBoxFonts";
+            this.checkedListBoxFonts.Size = new System.Drawing.Size(200, 420);
+            this.checkedListBoxFonts.TabIndex = 0;
+            this.checkedListBoxFonts.SelectedIndexChanged += new System.EventHandler(this.checkedListBoxFonts_SelectedIndexChanged);
+            // 
+            // pictureBoxPreview
+            // 
+            this.pictureBoxPreview.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pictureBoxPreview.Location = new System.Drawing.Point(218, 12);
+            this.pictureBoxPreview.Name = "pictureBoxPreview";
+            this.pictureBoxPreview.Size = new System.Drawing.Size(640, 420);
+            this.pictureBoxPreview.TabIndex = 1;
+            this.pictureBoxPreview.TabStop = false;
+            // 
+            // btnGenerateImages
+            // 
+            this.btnGenerateImages.Location = new System.Drawing.Point(218, 438);
+            this.btnGenerateImages.Name = "btnGenerateImages";
+            this.btnGenerateImages.Size = new System.Drawing.Size(640, 23);
+            this.btnGenerateImages.TabIndex = 2;
+            this.btnGenerateImages.Text = "Сформировать...";
+            this.btnGenerateImages.UseVisualStyleBackColor = true;
+            this.btnGenerateImages.Click += new System.EventHandler(this.btnGenerateImages_Click);
+            // 
+            // MainForm
+            // 
+            this.ClientSize = new System.Drawing.Size(870, 473);
+            this.Controls.Add(this.btnGenerateImages);
+            this.Controls.Add(this.pictureBoxPreview);
+            this.Controls.Add(this.checkedListBoxFonts);
+            this.Name = "MainForm";
+            this.Text = "Font Image Generator";
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPreview)).EndInit();
+            this.ResumeLayout(false);
+
+        }
+    }
+}
+
+--------------------- MainForm.Designer.cs
+
+--------------------- YoloAnnotationUtils.cs
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+
+public class YoloAnnotation : List<AnnotatedImage>
+{
+    public void AddNewAnnotatedImage(Bitmap image, List<AnnotatedObject> objects)
+    {
+        var annotatedImage = new AnnotatedImage(image, objects);
+        this.Add(annotatedImage);
+    }
+
+    public void SaveToPath(string path)
+    {
+        foreach (var annotatedImage in this)
+        {
+            var imagePath = Path.Combine(path, "images", annotatedImage.ImageName);
+            Directory.CreateDirectory(Path.GetDirectoryName(imagePath));
+            annotatedImage.Image.Save(imagePath);
+
+            var labelPath = Path.Combine(path, "labels", $"{annotatedImage.ImageName}.txt");
+            using (var writer = new StreamWriter(labelPath))
+            {
+                foreach (var obj in annotatedImage.Objects)
+                {
+                    writer.WriteLine($"{obj.Class} {obj.XCenter} {obj.YCenter} {obj.Width} {obj.Height}");
+                }
+            }
+        }
+
+        // Create classes.txt
+        var classesPath = Path.Combine(path, "classes.txt");
+        using (var writer = new StreamWriter(classesPath))
+        {
+            for (int i = 0; i < GetMaxClass(); i++)
+            {
+                writer.WriteLine(i);
+            }
+        }
+
+        // Create coco8.yaml
+        var yamlPath = Path.Combine(path, "coco8.yaml");
+        using (var writer = new StreamWriter(yamlPath))
+        {
+            writer.WriteLine("names:");
+            for (int i = 0; i < GetMaxClass(); i++)
+            {
+                writer.WriteLine($"  - {i}");
+            }
+            writer.WriteLine($"path: {path}");
+            writer.WriteLine($"nc: {GetMaxClass()}");
+            writer.WriteLine("test: images");
+            writer.WriteLine("train: images");
+            writer.WriteLine("val: images");
+        }
+
+        // Create notes.json
+        var jsonPath = Path.Combine(path, "notes.json");
+        using (var writer = new StreamWriter(jsonPath))
+        {
+            writer.WriteLine("{");
+            writer.WriteLine("  \"categories\": [");
+            for (int i = 0; i < GetMaxClass(); i++)
+            {
+                writer.WriteLine($"    {{\"id\": {i}, \"name\": \"{i}\"}},");
+            }
+            writer.WriteLine("  ],");
+            writer.WriteLine("  \"info\": {");
+            writer.WriteLine("    \"year\": 2024,");
+            writer.WriteLine("    \"version\": \"1.0\",");
+            writer.WriteLine("    \"contributor\": \"Your Name\"");
+            writer.WriteLine("  }");
+            writer.WriteLine("}");
+        }
+    }
+
+    private int GetMaxClass()
+    {
+        var maxClass = 0;
+        foreach (var annotatedImage in this)
+        {
+            foreach (var obj in annotatedImage.Objects)
+            {
+                if (obj.Class > maxClass) maxClass = obj.Class;
+            }
+        }
+        return maxClass + 1;
+    }
+
+    public class AnnotatedImage
+    {
+        public Bitmap Image { get; set; }
+        public string ImageName { get; set; }
+        public List<AnnotatedObject> Objects { get; set; }
+
+        public AnnotatedImage(Bitmap image, List<AnnotatedObject> objects)
+        {
+            Image = image;
+            ImageName = Guid.NewGuid().ToString() + ".jpg";
+            Objects = objects;
+
+            foreach (var obj in objects)
+            {
+                obj.XCenter /= image.Width;
+                obj.YCenter /= image.Height;
+                obj.Width /= image.Width;
+                obj.Height /= image.Height;
+            }
+        }
+    }
+
+    public class AnnotatedObject
+    {
+        public int Class { get; set; }
+        public float XCenter { get; set; }
+        public float YCenter { get; set; }
+        public float Width { get; set; }
+        public float Height { get; set; }
+    }
+}
+--------------------- YoloAnnotationUtils.cs
+
+--------------------- Sample using for YoloAnnotation
+var yoloAnnotation = new YoloAnnotation();
+
+// Create a bitmap image
+var image = new Bitmap(800, 600);
+
+// Create annotated objects
+var objects = new List<YoloAnnotation.AnnotatedObject>
+{
+    new YoloAnnotation.AnnotatedObject { Class = 0, XCenter = 100, YCenter = 200, Width = 50, Height = 50 },
+    new YoloAnnotation.AnnotatedObject { Class = 1, XCenter = 300, YCenter = 400, Width = 75, Height = 75 }
+};
+
+// Add the annotated image to the yolo annotation
+yoloAnnotation.AddNewAnnotatedImage(image, objects);
+
+// Save the yolo annotation to a path
+yoloAnnotation.SaveToPath(@"C:\path\to\yolo\annotation");
+This will create a directory structure with images and labels folders, and save the annotated image and its corresponding label file in YOLO format. The classes.txt, coco8.yaml, and notes.json files are also created.
+--------------------- Sample using for YoloAnnotation
